@@ -1,0 +1,64 @@
+name: Compile D2 Diagrams
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'public/assets/docs/prometheus-architecture.d2'
+      - '.github/workflows/d2-diagrams.yml'
+  pull_request:
+    paths:
+      - 'public/assets/docs/prometheus-architecture.d2'
+      - '.github/workflows/d2-diagrams.yml'
+
+jobs:
+  compile-d2:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install D2
+        run: |
+          curl -fsSL https://d2lang.com/install.sh | sh -s --
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile D2 diagram
+        run: |
+          d2 public/assets/docs/prometheus-architecture.d2 public/assets/docs/prometheus-architecture.autogen.svg
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --exit-code public/assets/docs/prometheus-architecture.autogen.svg || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changed
+        if: steps.git-check.outputs.changed == 'true' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/assets/docs/prometheus-architecture.autogen.svg
+          git commit -m "Update prometheus-architecture.autogen.svg from D2 diagram [skip ci]"
+          git push
+
+      - name: Upload artifact for PR
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: prometheus-architecture-svg
+          path: public/assets/docs/prometheus-architecture.autogen.svg
+          retention-days: 7
+
+      - name: Comment on PR if changes detected
+        if: steps.git-check.outputs.changed == 'true' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ The D2 diagram has been modified. The compiled `prometheus-architecture.autogen.svg` will be automatically updated when this PR is merged.'
+            })
