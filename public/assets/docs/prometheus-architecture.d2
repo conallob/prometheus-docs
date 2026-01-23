@@ -1,0 +1,175 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+direction: right
+
+# Title
+title: Prometheus Architecture {
+  near: top-center
+  shape: text
+  style: {
+    font-size: 24
+    bold: true
+  }
+}
+
+# Data Sources (Left Side)
+sources: {
+  label: "Data Sources"
+  style.stroke-dash: 3
+  
+  prometheus_targets: Prometheus targets {
+    icon: https://prometheus.io/assets/prometheus_logo_grey.svg
+    shape: image
+  }
+  
+  jobs: Jobs {
+    icon: https://prometheus.io/assets/prometheus_logo_grey.svg
+    style.multiple: true
+  }
+  
+  short_lived: Short-lived jobs
+  
+  exporters: {
+    label: "Exporters"
+    haproxy: HAProxy exporter
+    statsd: StatsD exporter
+    custom: Custom exporters
+  }
+}
+
+# Pushgateway
+pushgateway: Pushgateway {
+  icon: https://prometheus.io/assets/prometheus_logo_grey.svg
+  style.fill: "#e6f3ff"
+}
+
+# Service Discovery
+service_discovery: Service Discovery {
+  style.fill: "#fff4e6"
+  
+  k8s: Kubernetes {
+    icon: https://kubernetes.io/images/kubernetes-horizontal-color.png
+    shape: image
+  }
+  consul: Consul
+  file_sd: file_sd
+  dns: DNS
+}
+
+# Prometheus Server (Center)
+prometheus_server: Prometheus Server {
+  icon: https://prometheus.io/assets/prometheus_logo_grey.svg
+  style.fill: "#ffe6e6"
+  style.stroke: "#ff6b6b"
+  style.stroke-width: 3
+  
+  retrieval: Retrieval {
+    label: "Retrieval\n(Pull metrics)"
+  }
+  
+  tsdb: TSDB {
+    label: "Time Series\nDatabase"
+    style.fill: "#ffebcc"
+  }
+  
+  http_server: HTTP Server {
+    label: "HTTP Server\n(PromQL queries)"
+  }
+}
+
+# Storage
+storage: {
+  label: "Storage"
+  style.stroke-dash: 3
+  
+  local: local storage\nHDD/SSD {
+    style.fill: "#e6ffe6"
+  }
+  
+  remote: remote storage\n(optional) {
+    style.fill: "#e6ffe6"
+    style.opacity: 0.7
+  }
+}
+
+# Alertmanager
+alertmanager: Alertmanager {
+  icon: https://prometheus.io/assets/prometheus_logo_grey.svg
+  style.fill: "#fff0f0"
+}
+
+# Alert Destinations
+alert_destinations: {
+  label: "Alert Destinations"
+  style.stroke-dash: 3
+  
+  email: Email
+  pagerduty: PagerDuty {
+    icon: https://www.pagerduty.com/wp-content/uploads/2023/04/pagerduty-logo.png
+    shape: image
+  }
+  slack: Slack
+  webhook: Webhook
+}
+
+# Visualization & API
+visualization: {
+  label: "Visualization & APIs"
+  style.stroke-dash: 3
+  
+  prom_ui: Prometheus\nWeb UI {
+    icon: https://prometheus.io/assets/prometheus_logo_grey.svg
+  }
+  
+  grafana: Grafana {
+    icon: https://grafana.com/static/assets/img/grafana_icon.svg
+    shape: image
+  }
+  
+  api_clients: API clients
+}
+
+# Connections - Data Sources to Prometheus
+sources.prometheus_targets -> prometheus_server.retrieval: /metrics\nHTTP pull
+sources.jobs -> prometheus_server.retrieval: /metrics
+sources.exporters.haproxy -> prometheus_server.retrieval: /metrics
+sources.exporters.statsd -> prometheus_server.retrieval: /metrics
+sources.exporters.custom -> prometheus_server.retrieval: /metrics
+
+# Short-lived jobs to Pushgateway
+sources.short_lived -> pushgateway: push metrics\nHTTP POST
+
+# Pushgateway to Prometheus
+pushgateway -> prometheus_server.retrieval: /metrics\nHTTP pull
+
+# Service Discovery to Prometheus
+service_discovery.k8s -> prometheus_server.retrieval: target\ndiscovery
+service_discovery.consul -> prometheus_server.retrieval
+service_discovery.file_sd -> prometheus_server.retrieval
+service_discovery.dns -> prometheus_server.retrieval
+
+# Internal Prometheus Server connections
+prometheus_server.retrieval -> prometheus_server.tsdb: store
+prometheus_server.tsdb -> prometheus_server.http_server: query
+
+# Prometheus to Storage
+prometheus_server.tsdb -> storage.local
+prometheus_server.tsdb -> storage.remote: optional
+
+# Prometheus to Alertmanager
+prometheus_server.http_server -> alertmanager: alerts
+
+# Alertmanager to destinations
+alertmanager -> alert_destinations.email
+alertmanager -> alert_destinations.pagerduty
+alertmanager -> alert_destinations.slack
+alertmanager -> alert_destinations.webhook
+
+# Prometheus to Visualization
+prometheus_server.http_server -> visualization.prom_ui: PromQL
+prometheus_server.http_server -> visualization.grafana: PromQL\nHTTP API
+prometheus_server.http_server -> visualization.api_clients: HTTP API
