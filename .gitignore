@@ -42,3 +42,10 @@ next-env.d.ts
 
 # Generated docs files
 /generated
+
+# Auto-generated diagrams
+public/assets/docs/*.autogen.svg
+
+# CLAUDE state
+CLAUDE.md
+
